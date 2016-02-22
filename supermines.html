@@ -359,7 +359,7 @@
       MineField.prototype.processNeighbours = function(row, col, callback) {
         var neighbours = this.getNeighbours(row, col), sum = 0;
         for (var i = 0; i< neighbours.length; i++) {
-          sum += callback(neighbours[i][0], neighbours[i][1]);
+          sum += +callback(neighbours[i][0], neighbours[i][1]);
         }
         return sum;
       }
@@ -405,9 +405,9 @@
               that.hit(r, c);
             });
           }
-          return this.map[row][col].bomb;
+          return this.map[row][col].bomb ? 1 : 0;
         }
-        return false;
+        return 0;
       }
 
       MineField.prototype.get = function(row, col) {
@@ -426,6 +426,10 @@
     })();
 
     var Zone = (function() {
+      function _clone(obj) {
+        return JSON.parse(JSON.stringify(obj));
+      }
+
       function Zone(elements, data) {
         this.elements = elements;
         this.data = data || {};
@@ -468,7 +472,7 @@
             res.push([zone.elements[j][0], zone.elements[j][1]]);
           }
         }
-        return new Zone(res, this.data); // data - ?
+        return new Zone(res, _clone(this.data)); // data - ?
       }
 
       Zone.prototype.intersect = function (zone) {
@@ -480,7 +484,7 @@
             }
           }
         }
-        return new Zone(res, this.data); // data - ?
+        return new Zone(res, _clone(this.data)); // data - ?
       }
 
       Zone.prototype.sub = function (zone) {
@@ -490,7 +494,7 @@
             res.push([this.elements[i][0], this.elements[i][1]]);
           }
         }
-        return new Zone(res, this.data); // data - ?
+        return new Zone(res, _clone(this.data)); // data - ?
       }
 
       Zone.prototype.includes = function (zone) {
@@ -793,12 +797,18 @@
 
             var func = null;
             if (h > 0 && h === n) {
-              func = m.mark.bind(m);
+              func = 'mark';
             } else if (h > f && f === n) {
-              func = m.hit.bind(m);
+              func = 'hit';
             }
             if (func) {
-              m.processNeighbours(r, c, func);
+              var res = m.processNeighbours(r, c, m[func].bind(m));
+              if (0&&func === 'hit' && res) {
+                that.finished = true;
+                that.render();
+                that.showLost();
+                return true;
+              }
               this.render();
               if (m.getUnopenLeft()===0) {
                 this.showWon();
@@ -817,46 +827,72 @@
             if (!m.get(r, c).open) continue;
             var n = m.get(r, c).neighbours,
                 f = m.countNeighbourFlags(r, c),
-                h = m.countNeighbourHidden(r, c);
+                h = m.countNeighbourHidden(r, c),
+                minesLeft = n - f;
             if (n===0 || h===f || h===0) continue;
 
             var nList = m.getNeighbours(r, c);
-            // console.log('=>', 'r:',r, 'c:',c, 'n:',n, 'f:',f, 'h:',h, 'list:',nList);
             var res = [];
             for (var i = 0; i < nList.length; i++) {
               var r1 = nList[i][0],
                   c1 = nList[i][1],
                   d = m.get(r1, c1);
-              // console.log('d:', d);
               if (!d.open && !d.flag) {
                 res.push([r1,c1]);
               }
             }
             if (res.length) {
-              zoneList.push(new Zone(res, {mines: n - f}));
+              var newZone = new Zone(res, {mines: n - f});
+              zoneList.push(newZone);
             }
           }
         }
-        // console.log('zoneList:', JSON.stringify(zoneList));
+        zoneList = arrayUnique(zoneList);
+
+        function arrayUnique(array) {
+          var a = array.concat();
+          for(var i=0; i<a.length; ++i) {
+            for(var j=i+1; j<a.length; ++j) {
+              if(JSON.stringify(a[i]) === JSON.stringify(a[j]))
+                a.splice(j--, 1);
+            }
+          }
+          return a;
+        }
         function considerZone(myZone) {
+          // console.log('considerZone:', JSON.stringify(myZone));
+          var newZone;
           for (var i = 0; i < zoneList.length; i++) {
             if (myZone.includes(zoneList[i]) && myZone.getData().mines >= zoneList[i].getData().mines
               && myZone.elements.length > zoneList[i].elements.length) {
-              myZone = myZone.sub(zoneList[i]);
-              myZone.updateData('mines', myZone.getData().mines - zoneList[i].getData().mines);
+              newZone = myZone.sub(zoneList[i]);
+              // console.log('...considerZone:', i, JSON.stringify(zoneList[i]), JSON.stringify(newZone));
+              newZone.updateData('mines', myZone.getData().mines - zoneList[i].getData().mines);
+              if (considerZone2(newZone)) return true;
             }
           }
+          return false;
+        }
+        function considerZone2(myZone) {
+          // console.log('considerZone2:', JSON.stringify(myZone));
           if (myZone.elements.length === 0) return false;
           var func = null;
           if (myZone.getData().mines === 0) {
-            func = m.hit.bind(m);
+            func = 'hit';
           } else if (myZone.getData().mines === myZone.elements.length) {
-            func = m.mark.bind(m);
+            func = 'mark';
           }
+          // console.log('considerZone2:', myZone.elements.length, myZone.getData().mines, func);
           if (func) {
             // console.log(r,c,JSON.stringify(myZone));
             for (var j = 0; j < myZone.elements.length; j++) {
-              func(myZone.elements[j][0], myZone.elements[j][1]);
+              var res = m[func](myZone.elements[j][0], myZone.elements[j][1]);
+              if (0&&func==='hit' && res) {
+                that.finished = true;
+                that.render();
+                that.showLost();
+                return true;
+              }
             }
             that.render();
             if (m.getUnopenLeft()===0) {
@@ -963,6 +999,12 @@
             "field-rows": 16,
             "field-cols": 30,
             "field-mines": 99
+          },
+          "triangle-expert": {
+            "field-type": 'triangle',
+            "field-rows": 16,
+            "field-cols": 50,
+            "field-mines": 150
           }
       };
       
@@ -1028,6 +1070,7 @@
         <option value="rectangle-beginner">Rectangle - Beginner</option>
         <option value="rectangle-intermediate">Rectangle - Intermediate</option>
         <option value="rectangle-expert">Rectangle - Expert</option>
+        <option value="triangle-expert">Triangle - Expert</option>
       </select> <button id="set-preset">Set</button>
     </div>
     <div class="params-field">
@@ -1040,7 +1083,7 @@
       Mines: <input id="field-mines" value="40">
     </div>
     <div class="params-field">
-      Size: <input id="field-size" value="30">
+      Size: <input id="field-size" value="50">
     </div>
     <div class="params-field">
       Type: <select id="field-type">
