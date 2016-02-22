@@ -20,6 +20,13 @@
     }
     input, select {
       height: 25px;
+      width: 100%;
+    }
+    input[type=checkbox],input[type=radio] {
+      width: auto;
+      display: inline-block;
+      margin: 5px;
+      vertical-align: middle;
     }
     .params:after {
       content: '';
@@ -1093,16 +1100,16 @@
       </select>
     </div>
     <div class="params-field">
-      Free corners: <input id="field-free-corners" type="checkbox">
+      <input id="field-free-corners" type="checkbox"> Free corners
     </div>
     <div class="params-field">
-      Free Sides: <input id="field-free-sides" type="checkbox">
+      <input id="field-free-sides" type="checkbox"> Free Sides
     </div>
     <div class="params-field">
-      Free borders: <input id="field-free-borders" type="checkbox">
+      <input id="field-free-borders" type="checkbox"> Free borders
     </div>
     <div class="params-field">
-      Sides only are neighbours: <input id="field-sides-only" type="checkbox">
+      <input id="field-sides-only" type="checkbox"> Sides only are neighbours
     </div>
     <div class="params-field">
       <button id="apply">Apply</button>
@@ -1111,7 +1118,7 @@
       <button id="help">Help</button>
       <button id="autoplay">Auto</button>
       <button id="stop">Stop</button>
-      Allow random hits: <input id="field-allow-random" type="checkbox">
+      Allow desperate hits: <input id="field-allow-random" type="checkbox">
     </div>
   </div>
 </body>
