@@ -311,10 +311,19 @@
       }
 
       MineField.prototype.toggleMark = function(row, col) {
+        var that = this;
+        console.log(this.map[row][col].open, this.map[row][col].flag, this.map[row][col].neighbours, this.countNeighbourFlags(row, col), this.countNeighbourHidden(row, col));
         if (!this.map || !this.map[row] || !this.map[row][col]) return false;
         if (this.map[row] && this.map[row][col] && !this.map[row][col].open) {
           if (this.map[row][col].flag) this.unmark(row, col);
           else this.mark(row, col);
+          return true;
+        } else if (this.map[row][col].open && this.map[row][col].neighbours === this.countNeighbourHidden(row, col)) {
+          this.processNeighbours(row, col, function(r, c) {
+            if (!that.map[r][c].open && !that.map[r][c].flag) {
+              that.mark(r, c);
+            }
+          });
           return true;
         }
         return false;
