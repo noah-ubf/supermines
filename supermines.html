@@ -312,7 +312,6 @@
 
       MineField.prototype.toggleMark = function(row, col) {
         var that = this;
-        console.log(this.map[row][col].open, this.map[row][col].flag, this.map[row][col].neighbours, this.countNeighbourFlags(row, col), this.countNeighbourHidden(row, col));
         if (!this.map || !this.map[row] || !this.map[row][col]) return false;
         if (this.map[row] && this.map[row][col] && !this.map[row][col].open) {
           if (this.map[row][col].flag) this.unmark(row, col);
@@ -400,7 +399,10 @@
       MineField.prototype.processNeighbours = function(row, col, callback) {
         var neighbours = this.getNeighbours(row, col), sum = 0;
         for (var i = 0; i< neighbours.length; i++) {
-          sum += +callback(neighbours[i][0], neighbours[i][1]);
+          var res = +callback(neighbours[i][0], neighbours[i][1]);
+          if (!isNaN(res)) {
+            sum += res;
+          }
         }
         return sum;
       }
@@ -443,16 +445,18 @@
           this.openCount++;
           if (!this.map[row][col].bomb && this.map[row][col].neighbours === 0) {
             this.processNeighbours(row, col, function(r, c) {
-              that.hit(r, c);
+              if (that.hit(r, c)) return 1;
             });
           }
           return this.map[row][col].bomb ? 1 : 0;
         } else if (this.map[row][col].open && this.map[row][col].neighbours === this.countNeighbourFlags(row, col)) {
-          this.processNeighbours(row, col, function(r, c) {
+          var res = this.processNeighbours(row, col, function(r, c) {
             if (!that.map[r][c].open && !that.map[r][c].flag) {
-              that.hit(r, c);
+              if (that.hit(r, c)) return 1;
+              return 0;
             }
           });
+          if (res > 0) return 1;
         }
         return 0;
       }
@@ -749,7 +753,7 @@
             top = rect.top + scrollY,
             left = rect.left + scrollX;
 
-        console.log(t, t2,'('+clickX+','+clickY+')', '('+scrollX+','+scrollY+')', '('+top+','+left+')');
+        // console.log(t, t2,'('+clickX+','+clickY+')', '('+scrollX+','+scrollY+')', '('+top+','+left+')');
         clickX -= left;
         clickY -= top;
  
