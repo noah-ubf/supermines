@@ -18,7 +18,7 @@
       width: 20%;
       float: left;
     }
-    input, select {
+    input, .params-field select {
       height: 25px;
       width: 100%;
     }
@@ -43,6 +43,11 @@
       width: 100%;
       border-top: solid 1px #aaaaee;
     }
+    .play-ai button {
+      background: #dddddd;
+      border: solid 1px #9999dd;
+      border-radius: 4px;
+    }
     #apply {
       width: 100%;
     }
@@ -57,6 +62,7 @@
     }
     .map {
       cursor: pointer;
+      margin: 20px;
     }
     .map .row span {
       position: relative;
@@ -172,6 +178,25 @@
     }
     .highlight {
       opacity: 0.2;
+    }
+    .mine-field-map {
+      padding-bottom: 20px;
+    }
+    .blink {
+      animation: blink-animation 1s steps(2, start) infinite;
+      -webkit-animation: blink-animation 1s steps(2, start) infinite;
+    }
+    @keyframes blink-animation {
+      to {
+        /*box-shadow: inset 0 0 8px red;*/
+        background: red;
+      }
+    }
+    @-webkit-keyframes blink-animation {
+      to {
+        /*box-shadow: inset 0 0 8px red;*/
+        background: red;
+      }
     }
   </style>
   <script type="text/javascript">
@@ -413,6 +438,12 @@
             });
           }
           return this.map[row][col].bomb ? 1 : 0;
+        } else if (this.map[row][col].open && this.map[row][col].neighbours === this.countNeighbourFlags(row, col)) {
+          this.processNeighbours(row, col, function(r, c) {
+            if (!that.map[r][c].open && !that.map[r][c].flag) {
+              that.hit(r, c);
+            }
+          });
         }
         return 0;
       }
@@ -527,6 +558,7 @@
         this.hoveredPos = [-1,-1];
         this.setMeshSize(meshSize);
         this.el = document.createElement('DIV');
+        this.el.className = 'mine-field-map';
         this.el.addEventListener('click', this.hit.bind(this));
         this.el.addEventListener('contextmenu', this.mark.bind(this));
         if (this.debug) this.el.addEventListener('mousemove', this.highlight.bind(this));
@@ -544,7 +576,7 @@
 
             var f = this.map.countNeighbourFlags(r, c),
                 h = this.map.countNeighbourHidden(r, c);
-                var t = ' title="f:'+ f +', h:'+ h +'"';
+                var t = '';//' title="f:'+ f +', h:'+ h +'"';
 
             if (!this.debug&&!data.open) {
               if (data.flag) {
@@ -662,36 +694,56 @@
       }
 
       MineFieldBoard.prototype.getCoords = function(e) {
-        var evt = e ? e:window.event;
-        var clickX=0, clickY=0;
+        // var evt = e ? e:window.event;
+        // var clickX=0, clickY=0;
 
-        if ((evt.clientX || evt.clientY) &&
-          document.body &&
-          document.body.scrollLeft!=null) {
-          clickX = evt.clientX + document.body.scrollLeft;
-          clickY = evt.clientY + document.body.scrollTop;
-        }
-        if ((evt.clientX || evt.clientY) &&
-          document.compatMode=='CSS1Compat' && 
-          document.documentElement && 
-          document.documentElement.scrollLeft!=null) {
-          clickX = evt.clientX + document.documentElement.scrollLeft;
-          clickY = evt.clientY + document.documentElement.scrollTop;
-        }
-        if (evt.pageX || evt.pageY) {
-          clickX = evt.pageX;
-          clickY = evt.pageY;
-        }
-        var rect = this.el.querySelector('.map').getBoundingClientRect(),
-            top = rect.top + document.body.scrollTop,
-            left = rect.left + document.body.scrollLeft;
+        // if ((evt.clientX || evt.clientY) &&
+        //   document.body &&
+        //   document.body.scrollLeft!=null) {
+        //   clickX = evt.clientX + document.body.scrollLeft;
+        //   clickY = evt.clientY + document.body.scrollTop;
+        // }
+        // if ((evt.clientX || evt.clientY) &&
+        //   document.compatMode=='CSS1Compat' && 
+        //   document.documentElement && 
+        //   document.documentElement.scrollLeft!=null) {
+        //   clickX = evt.clientX + document.documentElement.scrollLeft;
+        //   clickY = evt.clientY + document.documentElement.scrollTop;
+        // }
+        // if (evt.pageX || evt.pageY) {
+        //   clickX = evt.pageX;
+        //   clickY = evt.pageY;
+        // }
+        // var rect = this.el.querySelector('.map').getBoundingClientRect(),
+        //     top = rect.top + document.body.scrollTop,
+        //     left = rect.left + document.body.scrollLeft;
 
+        // clickX -= left;
+        // clickY -= top;
+
+        // var top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
+        // clickY -= top;
+
+        e = e || window.event; // for ie<9
+        var x = 0, y = 0;
+        var sOff; // for scroll offsets
+
+        clickX = e.pageX || (e.clientX + window.scrollX);
+        clickY = e.pageY || (e.clientY + window.scrollY);
+
+
+        var t = document.documentElement || document.body.parentNode,
+            t2 = ((typeof t.scrollLeft == 'number') || (typeof t.ScrollLeft == 'number') ? t : document.body),
+            scrollX = t2.ScrollLeft || t2.scrollLeft || 0,
+            scrollY = t2.ScrollTop || t2.scrollTop || 0,
+            rect = this.el.querySelector('.map').getBoundingClientRect(),
+            top = rect.top + scrollY,
+            left = rect.left + scrollX;
+
+        console.log(t, t2,'('+clickX+','+clickY+')', '('+scrollX+','+scrollY+')', '('+top+','+left+')');
         clickX -= left;
         clickY -= top;
-
-        var top = (window.pageYOffset || document.documentElement.scrollTop)  - (document.documentElement.clientTop || 0);
-        clickY -= top;
-
+ 
         return [clickX, clickY];
       }
 
@@ -855,6 +907,23 @@
           }
         }
         zoneList = arrayUnique(zoneList);
+        var zoneList2 = [];
+        for (var i = 0; i < zoneList.length; i++) {
+          for (var j = 0; j < zoneList.length; j++) {
+            if (i === j) continue;
+            if (zoneList[i].includes(zoneList[j])) {
+              var newZone = zoneList[i].sub(zoneList[j]);
+              newZone.updateData('mines', zoneList[i].getData().mines - zoneList[j].getData().mines);
+              // console.log(JSON.stringify(newZone));
+              zoneList2.push(newZone);
+            }
+          }
+        }
+        // console.log('zoneList2:', zoneList2.length);
+        if (zoneList2.length) {
+          zoneList = arrayUnique(zoneList.concat(zoneList2));
+          // console.log('zoneListAll:', zoneList.length);
+        }
 
         function arrayUnique(array) {
           var a = array.concat();
@@ -1038,7 +1107,9 @@
       function autoplay() {
         if (autoPlay) return;
         autoPlay = true;
-        document.getElementById('autoplay').disabled = true;
+        var button = document.getElementById('autoplay');
+        button.disabled = true;
+        button.className = 'blink';
         var inProcess = false;
         var i = setInterval(function() {
           if (inProcess) return;
@@ -1052,8 +1123,10 @@
       }
 
       function stopAutoplay() {
-        document.getElementById('autoplay').disabled = false;
+        var button = document.getElementById('autoplay');
+        button.disabled = false;
         autoPlay = false;
+        button.className = '';
       }
       
       function firstRender() {
