@@ -437,6 +437,17 @@
         });
       }
 
+      MineField.prototype.easyHit = function(row, col) {
+        if (!this.map || !this.map[row] || !this.map[row][col]) return false;
+        if (!this.map[row][col].open) {
+          this.toggleMark(row, col);
+        } else if (this.map[row][col].neighbours === this.countNeighbourFlags(row, col)) {
+          this.hit(row, col);
+        } else if (this.map[row][col].neighbours === this.countNeighbourHidden(row, col)) {
+          this.toggleMark(row, col);
+        }
+      }
+
       MineField.prototype.hit = function(row, col) {
         var that = this;
         if (!this.map || !this.map[row] || !this.map[row][col]) return false;
@@ -761,9 +772,15 @@
       }
 
       MineFieldBoard.prototype.hit = function(e) {
-        var coords = this.getCoords(e),
+        var res,
+            coords = this.getCoords(e),
             pos = this.calcPosition(coords[0], coords[1]);
-        var res = this.map.hit(pos[0], pos[1]);
+
+        if (this.map.options.easyMode) { 
+          res = this.map.easyHit(pos[0], pos[1]);
+        } else {
+          res = this.map.hit(pos[0], pos[1]);
+        }        
 
         e.preventDefault();
 
@@ -797,7 +814,12 @@
           return false;
         }
 
-        this.map.toggleMark(pos[0], pos[1]);
+        if (this.map.options.easyMode) { 
+          this.map.easyHit(pos[0], pos[1]);
+        } else {
+          this.map.toggleMark(pos[0], pos[1]);
+        }
+
         this.render();
         if (this.map.getUnopenLeft()===0) {
           this.showWon();
@@ -1059,7 +1081,8 @@
               freeCorners: document.getElementById('field-free-corners').checked,
               freeSides: document.getElementById('field-free-sides').checked,
               freeBorders: document.getElementById('field-free-borders').checked,
-              sidesOnly: document.getElementById('field-sides-only').checked
+              sidesOnly: document.getElementById('field-sides-only').checked,
+              easyMode: document.getElementById('field-easy-mode').checked
             };
         var newParams = JSON.stringify({rows:rows,cols:cols,mines:mines,meshType:meshType,options:options});
         if (newParams !== oldParams) {
@@ -1196,6 +1219,9 @@
     </div>
     <div class="params-field">
       <input id="field-sides-only" type="checkbox"> Sides only are neighbours
+    </div>
+    <div class="params-field">
+      <input id="field-easy-mode" type="checkbox"> Easy mode
     </div>
     <div class="params-field">
       <button id="apply">Apply</button>
