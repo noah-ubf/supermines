@@ -441,11 +441,43 @@
         if (!this.map || !this.map[row] || !this.map[row][col]) return false;
         if (!this.map[row][col].open) {
           this.toggleMark(row, col);
+          return this.openKnownCells();
         } else if (this.map[row][col].neighbours === this.countNeighbourFlags(row, col)) {
-          this.hit(row, col);
+          return this.hit(row, col);
         } else if (this.map[row][col].neighbours === this.countNeighbourHidden(row, col)) {
           this.toggleMark(row, col);
+          return this.openKnownCells();
         }
+      }
+
+      MineField.prototype.openKnownCells = function() {
+        var sum = 0;
+        var cnt = 5;
+        var cells = this.findKnownCells();
+        while (cells.length > 0 && cnt > 0) {
+          for (var i = 0; i < cells.length; i++) {
+            if (this.hit(cells[i].r, cells[i].c)) return 1;
+          }
+          cells = this.findKnownCells();
+          cnt--;
+        }
+        return 0;
+      }
+
+      MineField.prototype.findKnownCells = function() {
+        var cells = [];
+        for (var r = 0; r < this.rowCount; r++) {
+          for (var c = 0; c < this.colCount; c++) {
+            if (this.map[r][c].open
+             && this.map[r][c].neighbours > 0
+             && this.countNeighbourHidden(r,c) - this.countNeighbourFlags(r, c) > 0
+             && this.map[r][c].neighbours === this.countNeighbourFlags(r, c)
+            ) {
+              cells.push({r:r,c:c});
+            }
+          }
+        }
+        return cells;
       }
 
       MineField.prototype.hit = function(row, col) {
